@@ -1,0 +1,5045 @@
+{
+  "openapi": "3.1.0",
+  "servers": [
+    {
+      "url": "https://serviceseu1.quentry.com/api/v2",
+      "description": "Quentry production environment for EU and US regions"
+    },
+    {
+      "url": "https://servicesau1.quentry.com/api/v2",
+      "description": "Quentry production environment for Australia region"
+    }
+  ],
+  "info": {
+    "title": "Quentry API",
+    "summary": "QUENTRY REST API",
+    "contact": {
+      "url": "https://www.brainlab.com/quentry-cloud-services/",
+      "email": "quentry.api@brainlab.com"
+    },
+    "version": "V2",
+    "x-logo": {
+      "url": "https://developers.quentry.com/RestApi/Quentry.png",
+      "altText": "Quentry"
+    },
+    "description": "#### Note: This is a \"work in progress\" documentatioon. For a released version of the API please refer to: https://developers.quentry.com/RestApi/quentry-v1.0.0/api.html\n\nBefore start using the API, you must have Quentry credentials. \nIf you haven't done so already, please register at: https://www.quentry.com/ng-WebPortal/#/login/createregistration\nMake sure to activate your account using the activation link sent to you at the end of the registration process.\n\n# Basic Usage\n\nThe following basic curl commands you can use as a quick start reference. Make sure to replace the MyClientApplicationName in the VoyantClientAppName header with the Application Name provided to you by the Quentry R&D team.\nIf you don't have application name yet, please contact us at quentry.api@brainlab.com\n\n\n## 1. Login \nThe following examples shows how to make the initial login request in order to obtain session.\nMake sure to replace MyPassword and MyUser with your credentials.\n\nExample:\n```\n    curl --location \"https://[ServerUrl]/api/v2/sessions\" \n    --header \"VoyantClientAppName: MyClientApplicationName\" \n    --header \"VoyantClientAppVersion: MyClientApplicationVersion\" \n    --header \"Content-Type: application/json\" \n    --data \"{\n    \\\"password\\\": \\\"MyPassword\\\",\n    \\\"username\\\": \\\"MyUser\\\"\n    }\"\n```\nThe result of the login call includes a Session Token and a Web Api endpoint which you __must use__ \nwith any additional calls you make to the API. You also get the current user system ID which you \ncan use in the next step when uploading files. For Example:\n\n```\n{\n\"data\": {\n    \"dicomWebURL\": null,\n    \"token\": \"MySessionToken....\",\n    \"region\": 2,\n    \"webAPIURL\": \"https://[ApiUrl]/api\",\n    \"userSystemId\": \"12345678-1234-1234-1234-12345678\"\n  }\n}\n```\n\n## 2. Upload\nUploading files to Quetry is done in a transctional method in order to ensure the completness of the files\n(all or nothing).\n### - Start Upload\n\n```\n  curl --location \"https://[ApiUrl]/api/v2/files\" \n  --header \"Authorization: Token MySessionToken\" \n  --header \"VoyantClientAppName: MyClientApplicationName\" \n  --header \"VoyantClientAppVersion: MyClientApplicationVersion\" \n  --header \"Content-Type: application/json\" \n  --data \"{\n  \\\"folderTitle\\\": \\\"MyFolderTitle\\\",\n  \\\"ownerSystemId\\\":\\\"RecipientOwnerID\\\"\n  }\"\n```\n\nAs a response for this call you get the unqiue system ID of the folder, an upload id to be used with the next\ncalls and a unique upload endpoint where you should make the rest of the calls for this specific upload.\nFor example:\n\n```\n{\n\"data\": {\n    \"folder\": {\n        \"folderSystemId\": \"1000000000001234567\"\n    },\n    \"uploadId\": \"UploadId\",\n    \"uploadUrl\": \"https://upload-server.quentry.com:443/api/v2/\"\n  }\n}\n```\n\n### - Add File\n(Using the uploadId from the previous call)\n\n```\ncurl --location \"https://upload-server.quentry.com:443/api/v2/files/UploadId\" \n--header \"Authorization: Token MySessionToken\" \n--header \"VoyantClientAppName: MyClientApplicationName\" \n--header \"VoyantClientAppVersion: MyClientApplicationVersion\" \n--header \"Content-Type: multipart/form-data\" \n--form \"chunkNumber=\\\"1\\\"\" \n--form \"fileName=\\\"file.dcm\\\"\" \n--form \"fileSize=\\\"111\\\"\" \n--form \"isLastChunkInFile=\\\"true\\\"\" \n--form \"uploadId=\\\"UploadId\\\"\" \n--form \"file=@\\\"/D:/dicoms/801 items/file.dcm\\\"\" \n--form \"fileId=\\\"12345678-1234-1234-1234-12345678\\\"\"\n```\n\nResponse: http 201\n\n\n### - Finish Upload\n(Using the uploadId from the start upload call)\n```\ncurl --location --request PUT \"https://upload-server.quentry.com:443/api/v2/files/UploadId\" \n--header \"Authorization: Token MySessionToken\" \n--header \"VoyantClientAppName: MyClientApplicationName\" \n--header \"VoyantClientAppVersion: MyClientApplicationVersion\" \n--header \"Content-Type: application/json\" \n--data \"{\n\\\"uploadId\\\": \\\"UploadId\\\"\n}\"\n```\n\nResponse: http 200\n\n## 3. Download\nThe download endpoint let you select the data you want to download by providing the system IDs.\nExample:\n\n```\ncurl --location 'https://api-eu.quentry.com/api/v2/patients/xxx/folders/xxx/download'\n--header 'Authorization: Token MySessionToken' \n--header 'VoyantClientAppName: MyClientApplicationName' \n--header 'VoyantClientAppVersion: MyClientApplicationVersion' \n--header 'Content-Type: application/json' \n```\n\nThe above call reutrns a response, similar to the following (sensitive data replaced by 'xxx'):\n\n```\n{\n\"data\": {\n    \"zip\": \"https://production-eu-west-1-download.quentry.com/v1/download/folders/xxx?contextId=xxx&token=xxx\",\n    \"files\": [\n        {\n            \"originalFileType\": \"DICOM\",\n            \"dicomMetadata\": {\n                \"studyInstanceUid\": \"xxx\",\n                \"seriesUid\": \"xxx\",\n                \"instanceUid\": \"xxx\",\n                \"frameNumber\": null,\n                \"ordinalSlicePosition\": 0,\n                \"sopClassUid\": \"1.2.840.10008.5.1.4.1.1.4\",\n                \"modality\": \"MR\"\n            },\n            \"systemMetadata\": {\n                \"studySystemId\": \"xxx\",\n                \"seriesSystemId\": \"xxx\",\n                \"instanceSystemId\": \"xxx\"\n            },\n            \"mimeType\": \"application/dicom\",\n            \"downloadUrl\": \"xxx\",\n            \"fileSystemId\": \"xxx\"\n        },\n      ]\n    }\n  }\n```\nThe response includes download URLs for getting the data as compressed zip file or extracted files.\n\nThe download API also provides with direct URLs to spcific study or Series:\n```\nhttps://api-eu.quentry.com/api/v2/patients/xxx/folders/xxx/studies/xxx/download\nhttps://api-eu.quentry.com/api/v2/patients/xxx/folders/xxx/studies/xxx/serieses/xxx/download\n```\n\nIf you don't know the folder, study or series IDs, you can retrieve them from the search endpoint\nresponse which also returns a link to the donwload endpoint. Exaple search response:\n\n```\n        ...\n        \"download-link\": \"/patients/xxx/folders/xxx/download\"\n        ...\n        \"download-link\": \"/patients/xxx/folders/xxx/studies/xxx/serieses/xxx/download\",\n        ...\n```\n\n# Detailed API\nThe following lists the supported API calls.\n"
+  },
+  "paths": {
+    "/sessions": {
+      "put": {
+        "tags": [
+          "Sessions"
+        ],
+        "summary": "Update session",
+        "description": "Update the current session",
+        "operationId": "sessions.put",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Sessions"
+        ],
+        "summary": "Login",
+        "description": "Perform a login operation to the Quentry platform. A session token is returned upon a successfull login.",
+        "operationId": "sessions.post",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Succesfull login",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LoginResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "Code": {
+                      "type": "integer",
+                      "description": "User is unauthorized to access the system. The following error code may return in case of unauthorized access.\n\n50102 - Invalid login credentials (wrong user name or password), please try again.\n\n50104 - Incomplete agreements signs (user has not signed the required agreements). Please login to the Web Portal and complete all agreement signing.\n\n50105 - User is blocked, please contact support.\n\n50106 - User is blocked (number of allowed login attempts exceeded). Please reset your password.\n\n50111 - Password has expired and must be changed.\n\n5010113 - User is not active. Please use the first time activation key provided by mail after registration.\n\n50114 - Specific license regulatory documents signing is missing.\n\n50116 - User does not have the required license in order to access Quentry.",
+                      "enum": [
+                        50102,
+                        50104,
+                        50105,
+                        50106,
+                        50111,
+                        5010113,
+                        50114,
+                        50116
+                      ]
+                    },
+                    "Message": {
+                      "type": "string",
+                      "example": "Invalid login credentials (wrong user name or password), please try again."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/MfaRequired"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Sessions"
+        ],
+        "summary": "Logout",
+        "description": "Close the session and logout from the system",
+        "operationId": "sessions.delete",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      }
+    },
+    "/mfa/challenge": {
+      "post": {
+        "tags": [
+          "Sessions"
+        ],
+        "summary": "Respond to MFA Challenge",
+        "description": "The client application should call this endpoint with the MFA challenge that returned from the call to the /sessions endpoint togher with the MFA code from the user. A session token is returned upon a successfull login.",
+        "operationId": "mfa.challenge.post",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaChallenge"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Succesfull login",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LoginResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "Code": {
+                      "type": "integer",
+                      "description": "User is unauthorized to access the system. The following error code may return in case of unauthorized access.\n\n50102 - Invalid login credentials (wrong user name or password), please try again.\n\n50104 - Incomplete agreements signs (user has not signed the required agreements). Please login to the Web Portal and complete all agreement signing.\n\n50105 - User is blocked, please contact support.\n\n50106 - User is blocked (number of allowed login attempts exceeded). Please reset your password.\n\n50111 - Password has expired and must be changed.\n\n5010113 - User is not active. Please use the first time activation key provided by mail after registration.\n\n50114 - Specific license regulatory documents signing is missing\n\n50116 - User does not have the required license in order to access Quentry.\n\n10081 - Missing MFA challenge data\n\n10082 - MFA wrong code\n\n10083 - MFA code expired\n\n10084 - General error, please contact support.",
+                      "enum": [
+                        50102,
+                        50104,
+                        50105,
+                        50106,
+                        50111,
+                        5010113,
+                        50114,
+                        50116,
+                        10081,
+                        10082,
+                        10083,
+                        10084
+                      ]
+                    },
+                    "Message": {
+                      "type": "string",
+                      "example": "Invalid login credentials (wrong user name or password), please try again."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaRequired"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/forms/search": {
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Search for dynamic forms by some search parameters",
+        "description": "Search for forms. Example: api/v2/forms/search?formName=myForm&formVersion=1.0&criterias[0].field=data.b&criterias[0].value=val1&patientSystemId=12345",
+        "operationId": "forms.formSystemId.search.get",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "formName",
+            "in": "query",
+            "description": "the name of the form to include in the search",
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "formVersion",
+            "in": "query",
+            "description": "the version of the form to include in the search",
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fieldFullPath",
+            "in": "query",
+            "description": "the path of the form field to search",
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fieldValue",
+            "in": "query",
+            "description": "the value to search for",
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "one or more eForms for this patient",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "result": {
+                          "type": "array",
+                          "description": "system IDs of the forms found in the search",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "description": "unauthorized. You do not have permissions to delete this form."
+          }
+        }
+      }
+    },
+    "/forms/{formSystemId}": {
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Retrieve dynamic form by its ID",
+        "description": "Get a form",
+        "operationId": "forms.formSystemId.get",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "formSystemId",
+            "in": "path",
+            "description": "the unique system ID of the form",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "one or more eForms for this patient",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "form": {
+                          "$ref": "#/components/schemas/eform"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "description": "unauthorized. You do not have permissions to delete this form."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Update dynamic form by its ID",
+        "description": "Update a form",
+        "operationId": "forms.formSystemId.put",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "formSystemId",
+            "in": "path",
+            "description": "the unique system ID of the form",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully."
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "description": "unauthorized. You do not have permissions to delete this form."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Delete dynamic form by its ID",
+        "description": "Delete a form",
+        "operationId": "forms.formSystemId.delete",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "formSystemId",
+            "in": "path",
+            "description": "the unique system ID of the form",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully."
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "description": "unauthorized. You do not have permissions to delete this form."
+          }
+        }
+      }
+    },
+    "/patients/search": {
+      "post": {
+        "tags": [
+          "Patients",
+          "M2M"
+        ],
+        "summary": "Search patients",
+        "description": "Search for patients and its data based on some criterias.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "The number of items to skip before returning the results",
+            "schema": {
+              "minimum": 0,
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The number of items to return",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer",
+              "default": 20
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "criterias": {
+                    "description": "optional fields of search criterias on different levels (patient, folder, dicom data)",
+                    "type": "object",
+                    "properties": {
+                      "patientName": {
+                        "type": "string",
+                        "description": "optional. filter by patient name DICOM tag [0010,0010]",
+                        "example": "Doe^John"
+                      },
+                      "patientId": {
+                        "type": "string",
+                        "description": "optional. filter by patient ID DICOM tag [0010,0020]",
+                        "example": "MRN123"
+                      },
+                      "patientSex": {
+                        "type": "string",
+                        "description": "optional. filter by patient sex DICOM tag [0010,0040]",
+                        "example": "M",
+                        "enum": [
+                          "M",
+                          "F",
+                          "O"
+                        ]
+                      },
+                      "patientDateOfBirth": {
+                        "type": "string",
+                        "description": "optional. filter by patient DOB DICOM tag [0010,0030] (YYYY-MM-DD)",
+                        "example": "1879-03-14"
+                      },
+                      "folderTitle": {
+                        "type": "string",
+                        "description": "optional. search by folder title",
+                        "example": "My Folder"
+                      },
+                      "studyDescription": {
+                        "type": "string",
+                        "description": "optional. search by study description [0008,1030]",
+                        "example": "My study desc"
+                      },
+                      "folderModifiedFrom": {
+                        "type": "string",
+                        "description": "optional. filter by folder modified from specific date (YYYY-MM-DD)",
+                        "example": "2020-05-23"
+                      },
+                      "folderModifiedTo": {
+                        "type": "string",
+                        "description": "optional. filter by folder modified to specific date (YYYY-MM-DD)",
+                        "example": "2020-05-23"
+                      },
+                      "folderUploadedFrom": {
+                        "type": "string",
+                        "description": "optional. filter by uploaded from specific date (YYYY-MM-DD)",
+                        "example": "2020-05-23"
+                      },
+                      "folderUploadedTo": {
+                        "type": "string",
+                        "description": "optional. filter by uploaded to specific date (YYYY-MM-DD)",
+                        "example": "2020-05-23"
+                      },
+                      "patientSystemId": {
+                        "type": "string",
+                        "description": "optional. search for data of a specific patient by its ID",
+                        "example": "123-ABC-456"
+                      },
+                      "ownerSystemId": {
+                        "type": "string",
+                        "description": "optional. filter by the system unique identifier of the patient owner (careteam or user)",
+                        "example": "123-ABC-456"
+                      }
+                    }
+                  },
+                  "select": {
+                    "type": "object",
+                    "description": "specify the requested result set from the search",
+                    "properties": {
+                      "resultLevel": {
+                        "type": "string",
+                        "enum": [
+                          "Patient",
+                          "Folder",
+                          "Study",
+                          "Series"
+                        ],
+                        "description": "optional. Define the result return level. The following levels are supported: \nPatient, Folder, Study, Series\n\n The result includs all level above it. For example, choosing Study will also return Patient and Folder.\n\n Default value is Patient",
+                        "default": "Patient",
+                        "example": "Study"
+                      }
+                    }
+                  },
+                  "options": {
+                    "type": "object",
+                    "description": "specify additional search options",
+                    "properties": {
+                      "criteriasOperator": {
+                        "type": "string",
+                        "enum": [
+                          "AND",
+                          "OR"
+                        ],
+                        "description": "optional. define the logical search operator between the differnt search criterias",
+                        "default": "OR"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "one or more patients for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "patients": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/PatientWithFolders"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      }
+    },
+    "/patients": {
+      "post": {
+        "tags": [
+          "Patients",
+          "M2M"
+        ],
+        "summary": "Create a new patient",
+        "description": "Use this API for creating a patient in a Quentry account. In Quentry, a patient belongs to an account and may have one of more folders, eForms and other metadata. This API allows you to create the basic patient metadat information. As a result you will get the internal Quentry patient system identifier which can be used with other API calls for adding data for the patient modifying or deleting it. The API returns an existing patient system ID in case it already exists with returned http code of 409.",
+        "operationId": "patients.post",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "requestBody": {
+          "description": "the details about the patient to be created.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "patient was succesfully created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "patientSystemId": {
+                          "type": "string",
+                          "description": "the new patient unique identifier"
+                        },
+                        "link": {
+                          "type": "string",
+                          "description": "url for the resource",
+                          "example": "/patients/123-ABC-456"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate record. Patient already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "patientSystemId": {
+                          "type": "string",
+                          "description": "the new patient unique identifier"
+                        },
+                        "link": {
+                          "type": "string",
+                          "description": "url for the resource",
+                          "example": "/patients/123-ABC-456"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Precondition failed. Please check the data that was sent to the server"
+          }
+        }
+      }
+    },
+    "/patients/{patientSystemId}": {
+      "get": {
+        "tags": [
+          "Patients"
+        ],
+        "summary": "Get specific patient information based on its ID",
+        "description": "Get all the patients you have access to",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the details about the requested patient",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PatientWithFoldersAndFormsLinks"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "404": {
+            "description": "patient does not exist or you may not have permissions to access it."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Patients"
+        ],
+        "summary": "Delete a patient",
+        "description": "Delete a patient. This will delete the entire patient, and all of its data including all of its folders. There is no way back!",
+        "operationId": "patients.patientsystemid.delete",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Patients"
+        ],
+        "summary": "Update a patient",
+        "description": "Update patient demographics (Name, ID, DOB, Sex). This operation triggers a reconciliation on all DICOM files belongs to this patient.",
+        "operationId": "patients.patientsystemid.put",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientDemographics"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully."
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "selected patient not found."
+          },
+          "409": {
+            "description": "operation could not be completed due to duplicate patient demographics. The selected update patient details already exists in Quentry. Please use the 'Merge' method in order to merge the two patients together."
+          }
+        }
+      }
+    },
+    "/careteams/{careTeamSystemId}/patients/{patientSystemId}": {
+      "delete": {
+        "tags": [
+          "CareTeams"
+        ],
+        "summary": "Delete a patient from specific care team",
+        "description": "Delete a patient. This will delete the entire patient, and all of its data including all of its folders from specific care team. There is no way back!",
+        "operationId": "careteams.careTeamSystemId.patients.patientsystemid.delete",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "careTeamSystemId",
+            "in": "path",
+            "description": "the unique system ID of the care team",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "412": {
+            "description": "Precondition failed. Please check the data that was sent to the server"
+          }
+        }
+      }
+    },
+    "/patients/{patientSystemId}/mergeTo/{otherPatientSystemId}": {
+      "patch": {
+        "tags": [
+          "Patients"
+        ],
+        "summary": "Merge two patients",
+        "description": "Merge two patients together. This will merge all patient data includindg, folders, eForm and any demographics with the selected target patietns. This operation triggers a reconciliation on all DICOM files belongs to this patient. The origin patient system ID will no longer be available after this operation.",
+        "operationId": "patients.patientsystemid.mergeTo.otherPatientSystemId.patch",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "otherPatientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the target patient to merge to",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "trying to merge patients that belong to different accounts."
+          }
+        }
+      }
+    },
+    "/patients/{patientSystemId}/folders/{folderSystemId}/forms": {
+      "post": {
+        "tags": [
+          "Forms - Folder"
+        ],
+        "summary": "Submit form to a folder",
+        "description": "Submit a form to folder",
+        "operationId": "Submit Folder Form",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/folderEform"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "operation completed succesfully and a new resource created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "resourceSystemId": {
+                          "type": "string",
+                          "description": "the new form unique identifier"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/patients/{patientSystemId}/folders/{folderSystemId}/forms/{formSystemId}": {
+      "get": {
+        "tags": [
+          "Forms - Folder",
+          "M2M"
+        ],
+        "summary": "Get patient folder form",
+        "description": "Get specific form from a folder",
+        "operationId": "Get Folder Form",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder to get its details",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "formSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "one or more eForms for this patient",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "form": {
+                          "$ref": "#/components/schemas/eform"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Forms - Folder",
+          "M2M"
+        ],
+        "summary": "Delete patient folder form",
+        "description": "Delete a specific form of a folder",
+        "operationId": "Delete Folder Form",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "formSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Forms - Folder",
+          "M2M"
+        ],
+        "summary": "Update patient folder form",
+        "description": "Update the content value of the form",
+        "operationId": "Update Folder Form",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder to get its details",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "formSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/eformData"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/files": {
+      "post": {
+        "tags": [
+          "Upload - New Folder",
+          "M2M"
+        ],
+        "summary": "Start Upload",
+        "description": "Start uploading multiple files to a new folder. A new patient will be created in case it does not yet exists, based on the DICOM data that is uploaded.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [
+                  "ownerSystemId"
+                ],
+                "type": "object",
+                "properties": {
+                  "folderTitle": {
+                    "type": "string",
+                    "description": "the title of the new folder to be created for this upload",
+                    "example": "My Folder"
+                  },
+                  "ownerSystemId": {
+                    "type": "string",
+                    "example": "123-ABC-456",
+                    "description": "the owner of the new folder to be created (CareTeam or User)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "start upload succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "uploadId": {
+                          "type": "string",
+                          "description": "the upload identifier to be used for the upload of each file.",
+                          "example": "123-ABC-456"
+                        },
+                        "uploadUrl": {
+                          "type": "string",
+                          "description": "a base url for the additional calls of each file to be uploaded.",
+                          "example": "https://upload1.quentry.com/"
+                        },
+                        "folder": {
+                          "type": "object",
+                          "description": "optional. Contais data about the folder that was created for this upload",
+                          "properties": {
+                            "folderSystemId": {
+                              "type": "string",
+                              "description": "the new folder unique identifier",
+                              "example": "123-ABC-456"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/files/{uploadId}": {
+      "post": {
+        "tags": [
+          "Upload - New Folder",
+          "M2M"
+        ],
+        "summary": "Upload File",
+        "description": "Continue upload to a folder. File can be splitted into multiple chunks. Make a call for each chunk specifying the chunk number and the total chunks containing in the file. The server will start processing the file only after all chunks have been arrived. Make sure to use the endpoint URL provided to you in the response to the Start Upload call.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "uploadId",
+            "in": "path",
+            "description": "the upload identifier that was returned in the Start Upload request",
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "fileName",
+                  "fileSize",
+                  "isLastChunkInFile",
+                  "file"
+                ],
+                "type": "object",
+                "properties": {
+                  "fileName": {
+                    "type": "string",
+                    "example": "myFile.dcm"
+                  },
+                  "fileSize": {
+                    "type": "integer",
+                    "description": "the total size of the file in bytes",
+                    "example": 1024
+                  },
+                  "isLastChunkInFile": {
+                    "type": "boolean",
+                    "description": "set to true if this is the last chunk of the file or if this is a single file upload flow",
+                    "example": 1
+                  },
+                  "chunkNumber": {
+                    "type": "integer",
+                    "description": "the current chunk number of the file. This parameter is required when splitting large files into multiple chunks.",
+                    "example": 1
+                  },
+                  "fileId": {
+                    "type": "integer",
+                    "description": "unique GUID identifier of the file. This parmeter is only required when splitting large files into multiple chunks.",
+                    "example": 5
+                  },
+                  "file": {
+                    "type": "string",
+                    "description": "the file data"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "file uploaded succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Upload - New Folder",
+          "M2M"
+        ],
+        "summary": "Finish Upload",
+        "description": "Finish the upload process. Make sure to use the endpoint URL provided to you in the response to the Start Upload call.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "uploadId",
+            "in": "path",
+            "description": "the upload identifier that was returned in the Start Upload request",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "upload finished"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again"
+          }
+        }
+      }
+    },
+    "/patients/{patientSystemId}/folders/{folderSystemId}/files": {
+      "post": {
+        "tags": [
+          "Upload - Existing Folder",
+          "M2M"
+        ],
+        "summary": "Start Upload",
+        "description": "Start uploading multiple files to an existing folder.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder to upload files",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "start upload succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "uploadId": {
+                          "type": "string",
+                          "description": "the upload identifier to be used for the upload of each file.",
+                          "example": "123-ABC-456"
+                        },
+                        "uploadUrl": {
+                          "type": "string",
+                          "description": "a base url for the additional calls of each file to be uploaded.",
+                          "example": "https://upload1.quentry.com/"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/patients/{patientSystemId}/folders/{folderSystemId}/files/{uploadId}": {
+      "post": {
+        "tags": [
+          "Upload - Existing Folder",
+          "M2M"
+        ],
+        "summary": "Upload File",
+        "description": "Continue upload to a folder. \n  \n  File can be splitted into multiple chunks. Make a call for each chunk specifying the chunk number and the total chunks containing in the file. The server will start processing the file only after all chunks have been arrived.\n            \n            \n  __Note:__ for transactional upload this call should use the base URL provided to you in the GET response. \n  \n  \n",
+        "operationId": "patients.patientsystemid.folders.foldersystemid.files.post",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder to upload files",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "uploadId",
+            "in": "path",
+            "description": "the upload identifier that was returned in the Start Upload request",
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "fileName",
+                  "fileSize",
+                  "isLastChunkInFile",
+                  "file"
+                ],
+                "type": "object",
+                "properties": {
+                  "fileName": {
+                    "type": "string",
+                    "example": "myFile.dcm"
+                  },
+                  "fileSize": {
+                    "type": "integer",
+                    "description": "the total size of the file in bytes",
+                    "example": 1024
+                  },
+                  "isLastChunkInFile": {
+                    "type": "boolean",
+                    "description": "set to true if this is the last chunk of the file or if this is a single file upload flow",
+                    "example": 1
+                  },
+                  "chunkNumber": {
+                    "type": "integer",
+                    "description": "the current chunk number of the file. This parameter is required when splitting large files into multiple chunks.",
+                    "example": 1
+                  },
+                  "fileId": {
+                    "type": "integer",
+                    "description": "unique GUID identifier of the file. This parmeter is only required when splitting large files into multiple chunks.",
+                    "example": 5
+                  },
+                  "file": {
+                    "type": "string",
+                    "description": "the file data"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "file uploaded succesfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "uploadId": {
+                          "type": "string",
+                          "description": "the upload identifier",
+                          "example": "123-ABC-456"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Upload - Existing Folder",
+          "M2M"
+        ],
+        "summary": "Finish Upload",
+        "description": "Finish an upload process.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder to upload files",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "uploadId",
+            "in": "path",
+            "description": "the upload identifier that was returned in the Start Upload request",
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {}
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "upload ID completed succesfully. Upload finished."
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      }
+    },
+    "/patients/{patientSystemId}/folders": {
+      "post": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "Create new folder",
+        "description": "Create a new folder for a patient",
+        "operationId": "patients.patientsystemid.folders.post",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "requestBody": {
+          "description": "the details about the folder to be created.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [
+                  "owner",
+                  "title"
+                ],
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "the title of the folder",
+                    "example": "My Folder Title"
+                  },
+                  "owner": {
+                    "type": "object",
+                    "properties": {
+                      "ownerType": {
+                        "type": "string",
+                        "enum": [
+                          "CareTeam",
+                          "User"
+                        ]
+                      },
+                      "systemId": {
+                        "type": "string",
+                        "description": "the system ID of the owner (CareTeam or User)",
+                        "example": "123-ABC-456"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "folder was succesfully created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "folderSystemId": {
+                          "type": "string",
+                          "description": "the new folder unique identifier"
+                        },
+                        "link": {
+                          "type": "string",
+                          "description": "url for the resource",
+                          "example": "/patients/123-ABC-456/folders/123-ABC-456"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/patients/{patientSystemId}/folders/{folderSystemId}/download": {
+      "get": {
+        "tags": [
+          "Download",
+          "M2M"
+        ],
+        "summary": "Folders download data",
+        "description": "This API returns all download options for a folder.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder to get its download details",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "$ref": "#/components/parameters/Format"
+          },
+          {
+            "$ref": "#/components/parameters/Compression"
+          },
+          {
+            "$ref": "#/components/parameters/Width"
+          },
+          {
+            "$ref": "#/components/parameters/Height"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "defines a metadata about files download links",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/downloadMetadata"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/patients/{patientSystemId}/folders/{folderSystemId}/studies/{studySystemId}/download": {
+      "get": {
+        "tags": [
+          "Download",
+          "M2M"
+        ],
+        "summary": "Study download data",
+        "description": "This API returns all download options for a study.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder the study belongs to",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "studySystemId",
+            "in": "path",
+            "description": "the unique system ID of the study to get its download details",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "$ref": "#/components/parameters/Format"
+          },
+          {
+            "$ref": "#/components/parameters/Compression"
+          },
+          {
+            "$ref": "#/components/parameters/Width"
+          },
+          {
+            "$ref": "#/components/parameters/Height"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "defines a metadata about files download links",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/downloadMetadata"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/patients/{patientSystemId}/folders/{folderSystemId}/studies/{studySystemId}/serieses/{seriesSystemId}/download": {
+      "get": {
+        "tags": [
+          "Download",
+          "M2M"
+        ],
+        "summary": "Series download data",
+        "description": "This API returns all download options for a series.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder the study belongs to",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "studySystemId",
+            "in": "path",
+            "description": "the unique system ID of the study the series belongs to",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "seriesSystemId",
+            "in": "path",
+            "description": "the unique system ID of the series to get its download details",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "$ref": "#/components/parameters/Format"
+          },
+          {
+            "$ref": "#/components/parameters/Compression"
+          },
+          {
+            "$ref": "#/components/parameters/Width"
+          },
+          {
+            "$ref": "#/components/parameters/Height"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "defines a metadata about files download links",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/downloadMetadata"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/folders/{folderSystemId}": {
+      "get": {
+        "tags": [
+          "Folders",
+          "M2M"
+        ],
+        "summary": "Get Folder",
+        "description": "Get folder details",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder to get its details",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "description": "define the folder detailed level to be returned. The following levels are supported: \nEverything, Study, Series, Instance, Comment, Attachment.\nYou can choose multiple fields to be returned. \"Study, Series\" are selected by default in case no value specified.\n",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Study, Series, Comment"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the details about the requested folder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/folder"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Folders",
+          "M2M"
+        ],
+        "summary": "Delete a folder",
+        "description": "Delete a patient folder. This will delete the entire folder and all of its content. There is no way back!",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder to get its details",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Folders",
+          "M2M"
+        ],
+        "summary": "Update a folder",
+        "description": "Update some details of the folder",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder to get its details",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "requestBody": {
+          "description": "the updated details of the folder",
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [
+                  "owner",
+                  "title"
+                ],
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "the title of the folder",
+                    "example": "My Folder Title"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      }
+    },
+    "/folders/{folderSystemId}/series/{seriesSystemId}": {
+      "delete": {
+        "tags": [
+          "Folders",
+          "M2M"
+        ],
+        "summary": "Delete a series in a folder",
+        "description": "Deletes a series in a folder. The folder may still exist in other folders. There is no way back!",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "seriesSystemId",
+            "in": "path",
+            "description": "the unique system ID of the series to delete",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      }
+    },
+    "/patients/{patientSystemId}/folders/{folderSystemId}": {
+      "get": {
+        "tags": [
+          "Folders",
+          "M2M"
+        ],
+        "summary": "Get patient folder",
+        "description": "Get folder details",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder to get its details",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "description": "define the folder detailed level to be returned. The following levels are supported: \nEverything, Study, Series, Instance, Comment, Attachment.\nYou can choose multiple fields to be returned. \"Study, Series\" are selected by default in case no value specified.\n",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Study, Series, Comment"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the details about the requested folder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/folder"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Folders",
+          "M2M"
+        ],
+        "summary": "Delete a patient folder",
+        "description": "Delete a patient folder. This will delete the entire folder and all of its content. There is no way back!",
+        "operationId": "patients.patientsystemid.folders.foldersystemid.delete",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder to get its details",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Folders",
+          "M2M"
+        ],
+        "summary": "Update a patient folder",
+        "description": "Update some details of the folder",
+        "operationId": "patients.patientsystemid.folders.foldersystemid.patch",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "patientSystemId",
+            "in": "path",
+            "description": "the unique system ID of the patient",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "folderSystemId",
+            "in": "path",
+            "description": "the unique system ID of the folder to get its details",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "requestBody": {
+          "description": "the updated details of the folder",
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [
+                  "owner",
+                  "title"
+                ],
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "the title of the folder",
+                    "example": "My Folder Title"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "operation completed succesfully"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      }
+    },
+    "/accounts/{accountSystemId}": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Get account details",
+        "description": "The method returns details about an account",
+        "operationId": "accounts.accountSystemId.get",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "accountSystemId",
+            "in": "path",
+            "description": "the unique system ID of the account",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "information about the account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      }
+    },
+    "/accounts/applications": {
+      "get": {
+        "tags": [
+          "Account",
+          "M2M"
+        ],
+        "summary": "Get M2M application details",
+        "description": "The method returns M2M application details. To be used only with M2M JWT bearer token",
+        "operationId": "accounts.applications.get",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "information about the M2M application",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceAppLinkedAccount"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      }
+    },
+    "/accounts/export": {
+      "post": {
+        "tags": [
+          "Account",
+          "M2M"
+        ],
+        "summary": "Initiate export process for one or more accounts",
+        "description": "Start an export process for one or more accounts. Note: the request will return existing task id in case there is already an export request in process for the current user and current accounts.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "includingPhi": {
+                    "type": "boolean",
+                    "description": "define if the data should be exported with PHI. Default is 'False'",
+                    "example": "false"
+                  },
+                  "exportEntitiesIds": {
+                    "type": "array",
+                    "description": "system IDs of the entities to be exported",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Export process has started/Existing export process already running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "taskId": {
+                          "type": "string",
+                          "description": "the new/existing export task id",
+                          "example": "F8C5D317-887A-41E0-A7E4-65DD21972117"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. You do not have permissions to export data from all accounts in scope"
+          }
+        }
+      }
+    },
+    "/patients/export": {
+      "post": {
+        "tags": [
+          "Patients",
+          "M2M"
+        ],
+        "summary": "Initiate export process for one or more patients",
+        "description": "Start an export process for one or more patients. Note: the request will return existing task id in case there is already an export request in process for the current user and current patients.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "includingPhi": {
+                    "type": "boolean",
+                    "description": "define if the data should be exported with PHI. Default is 'False'",
+                    "example": "false"
+                  },
+                  "exportEntitiesIds": {
+                    "type": "array",
+                    "description": "system IDs of the entities to be exported",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Export process has started/Existing export process already running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "taskId": {
+                          "type": "string",
+                          "description": "the new/existing export task id",
+                          "example": "F8C5D317-887A-41E0-A7E4-65DD21972117"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/folders/export": {
+      "post": {
+        "tags": [
+          "Folders",
+          "M2M"
+        ],
+        "summary": "Initiate export process for one or more folders",
+        "description": "Start an export process for one or more folders. Note: the request will return existing task id in case there is already an export request in process for the current user current folders.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "includingPhi": {
+                    "type": "boolean",
+                    "description": "define if the data should be exported with PHI. Default is 'False'",
+                    "example": "false"
+                  },
+                  "exportEntitiesIds": {
+                    "type": "array",
+                    "description": "system IDs of the entities to be exported",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Export process has started/Existing export process already running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "taskId": {
+                          "type": "string",
+                          "description": "the new/existing export task id",
+                          "example": "F8C5D317-887A-41E0-A7E4-65DD21972117"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/careteams/export": {
+      "post": {
+        "tags": [
+          "CareTeams",
+          "M2M"
+        ],
+        "summary": "Initiate export process for one or more careteams",
+        "description": "Start an export process for one or more careteams. Note: the request will return existing task id in case there is already an export request in process for the current user current careteams.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "includingPhi": {
+                    "type": "boolean",
+                    "description": "define if the data should be exported with PHI. Default is 'False'",
+                    "example": "false"
+                  },
+                  "exportEntitiesIds": {
+                    "type": "array",
+                    "description": "system IDs of the entities to be exported",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Export process has started/Existing export process already running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "taskId": {
+                          "type": "string",
+                          "description": "the new/existing export task id",
+                          "example": "F8C5D317-887A-41E0-A7E4-65DD21972117"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounts/export/{taskId}": {
+      "get": {
+        "tags": [
+          "Account",
+          "M2M"
+        ],
+        "summary": "Get accounts export status",
+        "description": "Get export status according task id",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "taskId",
+            "in": "path",
+            "description": "the unique task ID of the export",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "F8C5D317-887A-41E0-A7E4-65DD21972117"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "export details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "InProcess",
+                            "Ready",
+                            "Failed"
+                          ],
+                          "description": "determines if the export data is ready to be download or if it's still in process",
+                          "example": "Ready"
+                        },
+                        "url": {
+                          "type": "string",
+                          "description": "download url for an excel file containing the entire export data",
+                          "example": "https://download.quentry.com/..."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/patients/export/{taskId}": {
+      "get": {
+        "tags": [
+          "Patients",
+          "M2M"
+        ],
+        "summary": "Get patients export status",
+        "description": "Get export status according task id",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "taskId",
+            "in": "path",
+            "description": "the unique task ID of the export",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "F8C5D317-887A-41E0-A7E4-65DD21972117"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "export details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "InProcess",
+                            "Ready",
+                            "Failed"
+                          ],
+                          "description": "determines if the export data is ready to be download or if it's still in process",
+                          "example": "Ready"
+                        },
+                        "url": {
+                          "type": "string",
+                          "description": "download url for an excel file containing the entire export data",
+                          "example": "https://download.quentry.com/.."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/folders/export/{taskId}": {
+      "get": {
+        "tags": [
+          "Folders",
+          "M2M"
+        ],
+        "summary": "Get folders export status",
+        "description": "Get export status according task id",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "taskId",
+            "in": "path",
+            "description": "the unique task ID of the export",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "F8C5D317-887A-41E0-A7E4-65DD21972117"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "export details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "InProcess",
+                            "Ready",
+                            "Failed"
+                          ],
+                          "description": "determines if the export data is ready to be download or if it's still in process",
+                          "example": "Ready"
+                        },
+                        "url": {
+                          "type": "string",
+                          "description": "download url for an excel file containing the entire export data",
+                          "example": "https://download.quentry.com/..."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/careteams/export/{taskId}": {
+      "get": {
+        "tags": [
+          "CareTeams",
+          "M2M"
+        ],
+        "summary": "Get careteams export status",
+        "description": "Get export status according task id",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "taskId",
+            "in": "path",
+            "description": "the unique task ID of the export",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "F8C5D317-887A-41E0-A7E4-65DD21972117"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "export details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "InProcess",
+                            "Ready",
+                            "Failed"
+                          ],
+                          "description": "determines if the export data is ready to be download or if it's still in process",
+                          "example": "Ready"
+                        },
+                        "url": {
+                          "type": "string",
+                          "description": "download url for an excel file containing the entire export data",
+                          "example": "https://download.quentry.com/..."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/careteams/{careteamSystemId}": {
+      "get": {
+        "tags": [
+          "CareTeams"
+        ],
+        "summary": "Get careteam details",
+        "description": "The method returns details about a CareTeam",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "careteamSystemId",
+            "in": "path",
+            "description": "the unique system ID of the CareTeam",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "information about the CareTeam",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CareTeamWithMembers"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      }
+    },
+    "/users/current": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get current user details",
+        "description": "The method returns details about the current user based on his registration info. The user is identified by the session token that is sent in the Authorization header.",
+        "operationId": "users.current.get",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "details about the current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserWithReferences"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      }
+    },
+    "/users/{userSystemId}": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get user details",
+        "description": "The method returns details about the user based on his registration info. Some details are not returned when making this call for System ID differ from the current user.",
+        "operationId": "users.userSystemId.get",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "userSystemId",
+            "in": "path",
+            "description": "the unique system ID of the user",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "details about the current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserWithReferences"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      }
+    },
+    "/users/{userSystemId}/applications": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get all applications assigned to this user",
+        "description": "Applications are extensions to the user experience, tools and feature set in Quentry. The API returns only applications which are currently licensed to the existing user (based on the session token that is sent in the header)",
+        "operationId": "users.userSystemId.applications.get",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "userSystemId",
+            "in": "path",
+            "description": "the unique system ID of the user",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "one or more applications assigned to the current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "applications": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/App"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          }
+        }
+      }
+    },
+    "/tasks": {
+      "post": {
+        "tags": [
+          "Tasks"
+        ],
+        "summary": "Create new task",
+        "description": "Create a new task for review patient folder",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          }
+        ],
+        "requestBody": {
+          "description": "the details about the folder task to be created.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [
+                  "folderSystemId"
+                ],
+                "type": "object",
+                "properties": {
+                  "taskType": {
+                    "type": "string",
+                    "enum": [
+                      "ReviewFolder"
+                    ],
+                    "description": "type of task to be created",
+                    "example": "ReviewFolder"
+                  },
+                  "folderSystemId": {
+                    "type": "string",
+                    "description": "the system ID of the folder",
+                    "example": "123-ABC-456"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "task was succesfully created"
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/stow/studies": {
+      "post": {
+        "tags": [
+          "DICOM Web",
+          "M2M"
+        ],
+        "summary": "DICOM WEB STOW",
+        "description": "Uploads dicom files via DICOM Web. You can either upload to spcific folder (send the PatientSystemId and FolderSystemId headers) or to recipient (send the Recipient and FodlerTitle headers).",
+        "servers": [
+          {
+            "url": "https://dicomweb.quentry.com"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "use contentType with the requested transfer syntax, for example: contentType: 'application/dicom;transfer-syntax=\"1.2.840.10008.1.2.1\"'"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "application/dicom;transfer-syntax=\"1.2.840.10008.1.2.1\""
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Authorization"
+          },
+          {
+            "$ref": "#/components/parameters/VoyantClientAppName"
+          },
+          {
+            "$ref": "#/components/parameters/Version"
+          },
+          {
+            "name": "FolderSystemId",
+            "in": "header",
+            "description": "The Folder ID that you want to upload to",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "PatientSystemId",
+            "in": "header",
+            "required": false,
+            "description": "The Patient ID that you want to upload to",
+            "servers": [
+              {
+                "url": "https://dicomweb.quentry.com"
+              }
+            ],
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "Recipient",
+            "in": "header",
+            "description": "The Recipient ID to upload the folder to",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "123-ABC-456"
+          },
+          {
+            "name": "FolderTitle",
+            "in": "header",
+            "description": "The newly created folder title. can be left empty - random folder title will be generated",
+            "schema": {
+              "type": "string"
+            },
+            "example": "My Folder Title"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {}
+            }
+          },
+          "401": {
+            "description": "invalid sesion or session expired. Please login again."
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "412": {
+            "description": "Precondition failed. Please check the data that was sent to the server"
+          }
+        }
+      }
+    },
+    "/status/status.json": {
+      "get": {
+        "tags": [
+          "System Status"
+        ],
+        "summary": "Quentry status",
+        "description": "Get current system status and planned downtimes",
+        "servers": [
+          {
+            "url": "https://developers.quentry.com/"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Quentry status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "plannedDowntimes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "startTimeGMT": {
+                            "type": "string",
+                            "description": "Planned downtime start (YYYY-MM-DDTHH:MM:SSZ)",
+                            "example": "2021-03-05T06:00:00Z"
+                          },
+                          "endTimeGMT": {
+                            "type": "string",
+                            "description": "Planned downtime end (YYYY-MM-DDTHH:MM:SSZ)",
+                            "example": "2021-03-05T16:00:00Z"
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "Description about the reason for the downtime",
+                            "example": "Quentry R19 Upgrade"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Authorization": {
+        "name": "Authorization",
+        "description": "The authentication session token provided to you during login or the JWT for M2M flow supported endpoints (see 'M2M' tag)",
+        "required": true,
+        "in": "header",
+        "schema": {
+          "type": "string",
+          "example": "Token EU_123ABCD456, Bearer eyJraWQiOiJqM0FseHFkaG9wUlBj...."
+        }
+      },
+      "VoyantClientAppName": {
+        "name": "VoyantClientAppName",
+        "deprecated": false,
+        "description": "The client application name as it was provided to you by Brainlab.",
+        "required": true,
+        "in": "header",
+        "schema": {
+          "type": "string",
+          "example": "MyClient"
+        }
+      },
+      "Version": {
+        "name": "VoyantClientAppVersion",
+        "deprecated": false,
+        "description": "The client application version as registered in the Quentry platform.",
+        "required": true,
+        "in": "header",
+        "schema": {
+          "type": "string",
+          "example": "1.0.0"
+        }
+      },
+      "Format": {
+        "name": "format",
+        "in": "query",
+        "description": "the image format",
+        "schema": {
+          "type": "string",
+          "default": "DCM",
+          "enum": [
+            "DCM",
+            "PNG",
+            "JPG"
+          ]
+        }
+      },
+      "Compression": {
+        "name": "compression",
+        "in": "query",
+        "description": "the compression quality value (only relevant for lossy format types like jpeg)",
+        "schema": {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer",
+          "default": 90
+        }
+      },
+      "Width": {
+        "name": "width",
+        "in": "query",
+        "description": "the requested width of the image. this is only relevant for extracting images out of DICOM files. if both width and height values are provided, the returned image will be adjusted to fit the requested size while keeping the aspect ratio",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "Height": {
+        "name": "height",
+        "in": "query",
+        "description": "the requested height of the image. this is only relevant for extracting images out of DICOM files. if both width and height values are provided, the returned image will be adjusted to fit the requested size while keeping the aspect ratio",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    },
+    "schemas": {
+      "UserCredentials": {
+        "required": [
+          "password",
+          "username"
+        ],
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "MyUser"
+          },
+          "password": {
+            "type": "string",
+            "example": "MyPassword"
+          }
+        }
+      },
+      "LoginResult": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "the session token to be used with the following API calls",
+            "example": "EU_Oz2vnch6mZbJCYGAUviaRA"
+          },
+          "region": {
+            "type": "integer",
+            "description": "the geographical region the user belongs to. 1-EU, 2-US, 5-AU",
+            "example": 1
+          },
+          "webAPIURL": {
+            "type": "string",
+            "description": "the base API url to be used for making calls on behalf of this user",
+            "example": "https://serviceseu1.quentry.com/api"
+          },
+          "dicomWebURL": {
+            "type": "string",
+            "description": "the base dicom web api url",
+            "example": "https://dicom-web-us.quentry.com/Stow"
+          },
+          "userSystemId": {
+            "type": "string",
+            "description": "unique identifier for the user",
+            "example": "123-ABC-456"
+          }
+        }
+      },
+      "Challenge": {
+        "required": [
+          "name",
+          "session",
+          "username"
+        ],
+        "type": "object",
+        "description": "MFA challenge details",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "SMS_MFA",
+            "description": "The challange name",
+            "enum": [
+              "SMS_MFA"
+            ]
+          },
+          "session": {
+            "type": "string",
+            "example": "AYABeK7tDtAmZmQmKBxC6hkcsWYAHQABAAdTZXJ2...",
+            "description": "Challange session"
+          },
+          "username": {
+            "type": "string",
+            "example": "user.user",
+            "description": "The user name"
+          }
+        }
+      },
+      "deliveryDetails": {
+        "type": "object",
+        "description": "MFA delivery details",
+        "properties": {
+          "mediumType": {
+            "type": "string",
+            "description": "MFA delivery type",
+            "example": "SMS"
+          },
+          "destination": {
+            "type": "string",
+            "description": "MFA delivery destination",
+            "example": "+972*******62"
+          }
+        }
+      },
+      "MfaRequired": {
+        "type": "object",
+        "description": "Returned in case Multi Factor Authentication is configured for the user",
+        "properties": {
+          "challenge": {
+            "$ref": "#/components/schemas/Challenge"
+          },
+          "deliveryDetails": {
+            "$ref": "#/components/schemas/deliveryDetails"
+          }
+        }
+      },
+      "MfaChallenge": {
+        "required": [
+          "challenge",
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "challenge": {
+            "$ref": "#/components/schemas/Challenge"
+          },
+          "code": {
+            "type": "string",
+            "example": 12345,
+            "description": "The MFA code that was sent to the user"
+          }
+        }
+      },
+      "eformDescriptor": {
+        "required": [
+          "formName",
+          "formVersion",
+          "behavior",
+          "formDisplayName"
+        ],
+        "type": "object",
+        "properties": {
+          "folderSystemId": {
+            "type": "string",
+            "description": "the folder system ID where this form is stored",
+            "example": "123-456-789"
+          },
+          "patientSystemId": {
+            "type": "string",
+            "description": "the patient system ID this form belongs to",
+            "example": "123-456-789"
+          },
+          "formName": {
+            "type": "string",
+            "description": "the form identifier name part",
+            "example": "WorkingDays"
+          },
+          "formVersion": {
+            "type": "string",
+            "description": "the form identifier version part",
+            "example": "1.0.0"
+          },
+          "behavior": {
+            "type": "string",
+            "description": "defines the logic of submitting a a form:\n\nAdd - Create the form anyway (even if an instance of this form already exists) \n\nOverride - If an instance of this form already exists - override it  \n\nIgnoreIfDuplicate - If an instance of this form already exists - a new one will not be created\n",
+            "example": "Add",
+            "enum": [
+              "Add",
+              "Override",
+              "IgnoreIfDuplicate"
+            ]
+          },
+          "keywords": {
+            "type": "array",
+            "description": "array of keywords that will be used for searching this form. This is usually based on the values of the form",
+            "items": {
+              "type": "string",
+              "example": "Sunday"
+            }
+          },
+          "formDisplayName": {
+            "type": "string",
+            "description": "a human friendly name of the form",
+            "example": "Working Days"
+          },
+          "exportName": {
+            "type": "string",
+            "description": "optional. form display name when being exported to excel file (usualy from account export or download of a folder).",
+            "example": "Working Days"
+          },
+          "lookups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "the name of the lookup",
+                  "example": "DaysOfWeek_lu"
+                },
+                "bindedFields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "the name of the lookup as it is referenced in the form fields",
+                    "example": "officeDays_i32"
+                  }
+                },
+                "lookup": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "a user friendly display name of the item",
+                        "example": "Sunday"
+                      },
+                      "key": {
+                        "type": "string",
+                        "description": "a key uniquely identifies this item in the lookup",
+                        "example": "1"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "defines a eform (dynamic form)"
+      },
+      "eformData": {
+        "required": [
+          "formData"
+        ],
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "object",
+            "properties": {
+              "totalFormFields": {
+                "type": "integer",
+                "description": "the total number of fields (including mandatory fields) in the form",
+                "example": 5
+              },
+              "filledFormFields": {
+                "type": "integer",
+                "description": "how many of the fields completed by the user",
+                "example": 2
+              },
+              "totalMandatoryFormFields": {
+                "type": "integer",
+                "description": "the total number of mandatory fields in the form",
+                "example": 3
+              },
+              "filledMandatoryFormFields": {
+                "type": "integer",
+                "description": "how many of the mandatory fields completed by the user",
+                "example": 1
+              },
+              "formSubmitted": {
+                "type": "boolean",
+                "description": "indicates whether the form is submitted"
+              }
+            },
+            "description": "optional. describe the form completenece status. For example,  the form may have 5 fields in total, 3 of them are mandatory. The user completed 1 mandatory and 1 non-mandatory fields."
+          },
+          "formData": {
+            "type": "object",
+            "description": "the form data. this data is not known to the server and stored as dynamic json data",
+            "example": {
+              "name_s": "these are my favorite days of the week",
+              "officeDays_i32": [
+                2,
+                3,
+                4,
+                5,
+                6
+              ]
+            }
+          }
+        },
+        "description": "defines a eform (dynamic form)"
+      },
+      "eform": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/eformDescriptor"
+          },
+          {
+            "$ref": "#/components/schemas/eformData"
+          }
+        ]
+      },
+      "FormInfo": {
+        "type": "object",
+        "properties": {
+          "formSystemId": {
+            "type": "string",
+            "description": "The form unique Quentry system ID",
+            "example": "123-456-789"
+          },
+          "formName": {
+            "type": "string",
+            "description": "form name",
+            "example": "MyForm"
+          },
+          "formVersion": {
+            "type": "string",
+            "description": "form version number",
+            "example": "1.1.5"
+          },
+          "link": {
+            "type": "string",
+            "description": "links to form content",
+            "example": "/patients/4/folders/3/forms/64c7a506714f86f0f5f7a596"
+          }
+        },
+        "description": "describe basic information  of related form"
+      },
+      "HumanName": {
+        "type": "object",
+        "properties": {
+          "family": {
+            "type": "string",
+            "description": "Family name (often called 'Surname')",
+            "example": "Doe"
+          },
+          "given": {
+            "type": "string",
+            "description": "Given names (not always 'first')\n",
+            "example": "John"
+          },
+          "middle": {
+            "type": "string",
+            "description": "The persons middle name\n",
+            "example": "Ben"
+          },
+          "prefix": {
+            "type": "string",
+            "description": "Parts that come before the name\nThis repeating element order: Prefixes appear in the correct order for presenting the name\n  example: Mr.\n",
+            "example": "Mr."
+          },
+          "suffix": {
+            "type": "string",
+            "description": "Parts that come after the name\nThis repeating element order: Suffixes appear in the correct order for presenting the name\n",
+            "example": "3rd"
+          }
+        },
+        "description": "describe the building blocks of patient name. Also not mandatory, at least one of the fields should include some data."
+      },
+      "PatientDemographics": {
+        "type": "object",
+        "properties": {
+          "patientId": {
+            "type": "string",
+            "description": "the patient medical record identifier",
+            "example": "MRN123"
+          },
+          "name": {
+            "$ref": "#/components/schemas/HumanName"
+          },
+          "sex": {
+            "type": "string",
+            "description": "the sex of the patient",
+            "enum": [
+              "M",
+              "F",
+              "O"
+            ]
+          },
+          "birthdate": {
+            "type": "string",
+            "description": "date of birth of the patient in format YYYY-MM-DD",
+            "example": "1879-03-14"
+          }
+        }
+      },
+      "Series": {
+        "required": [
+          "systemId"
+        ],
+        "type": "object",
+        "properties": {
+          "systemId": {
+            "type": "string",
+            "description": "the internal system identifier of the series",
+            "example": "123-ABC-456"
+          },
+          "thumbnail-url": {
+            "type": "string",
+            "description": "url for accessing a thumbnail representing this series. The url returns a based64 encoded binary data of the image that can be accessed with a simple http GET request",
+            "example": "https://download.quentry.com/...."
+          },
+          "dicomTags": {
+            "type": "object",
+            "properties": {
+              "modality": {
+                "type": "string",
+                "description": "the modality as described in the DICOM tag [0008,0060]",
+                "example": "MR"
+              },
+              "seriesDescription": {
+                "type": "string",
+                "description": "the series description as described in the DICOM tag [0008,103E]",
+                "example": "Some series description"
+              },
+              "seriesDate": {
+                "type": "string",
+                "description": "the series date as described in the DICOM tag [0008,0021]"
+              },
+              "seriesTime": {
+                "type": "string",
+                "description": "the series time as described in the DICOM tag [0008,0031]"
+              },
+              "seriesUid": {
+                "type": "string",
+                "description": "the series UID as described in the DICOM tag [0020,000E]"
+              },
+              "sopClassUid": {
+                "type": "string",
+                "description": "the SOP class UID as described in the DICOM tag [0008,0016]"
+              },
+              "contentDate": {
+                "type": "string",
+                "description": "the content date as described in the DICOM tag [0008,0023]"
+              }
+            }
+          },
+          "numberOfSlices": {
+            "type": "integer",
+            "description": "the number of slices in the series",
+            "example": 5
+          },
+          "download-link": {
+            "type": "string",
+            "description": "url for getting series download details",
+            "example": "/series/123-ABC-456/download"
+          }
+        },
+        "description": "Content produded in a DICOM imaging series"
+      },
+      "Study": {
+        "required": [
+          "systemId"
+        ],
+        "type": "object",
+        "properties": {
+          "systemId": {
+            "type": "string",
+            "description": "the internal system identifier of the study",
+            "example": "123-ABC-456"
+          },
+          "submitDate": {
+            "type": "string",
+            "description": "the date of which this study was initially submitted to the system. For example, in the Quentry system, this is the upload date (YYYY-MM-DDTHH:MM:SSZ)",
+            "example": "2020-07-13T13:45:20Z"
+          },
+          "download-link": {
+            "type": "string",
+            "description": "url for getting study download details",
+            "example": "/studies/123-ABC-456/download"
+          },
+          "dicomTags": {
+            "type": "object",
+            "properties": {
+              "patientName": {
+                "type": "string",
+                "description": "the patient name as described in the DICOM tag [0010,0010]",
+                "example": "Doe^John"
+              },
+              "patientId": {
+                "type": "string",
+                "description": "the patient ID as described in the DICOM tag [0010,0020]",
+                "example": "12345"
+              },
+              "patientDateOfBirth": {
+                "type": "string",
+                "description": "the patient DOB as described in the DICOM tag [0010,0030] (YYYY-MM-DD)",
+                "example": "2020-07-13"
+              },
+              "patientSex": {
+                "type": "string",
+                "description": "the patient sex as described in the DICOM tag [0010,0040]",
+                "example": "Male"
+              },
+              "studyDate": {
+                "type": "string",
+                "description": "the study date as described in the DICOM tag [0008,0020]",
+                "example": "2006-01-01 13:36:01"
+              },
+              "studyInstanceUid": {
+                "type": "string",
+                "description": "the study instance uid as described in the DICOM tag [0020,000D]",
+                "example": "1.2.3.4"
+              },
+              "accessionNumber": {
+                "type": "string",
+                "description": "the accession number as described in the DICOM tag [0008,0050]",
+                "example": "12345"
+              },
+              "studyDescription": {
+                "type": "string",
+                "description": "the study description as described in the DICOM tag [0008,1030]",
+                "example": "Study description..."
+              },
+              "referringPhysician": {
+                "type": "string",
+                "description": "the referring physician name as described in the DICOM tag [0008,0090]",
+                "example": "Dr. John Doe"
+              },
+              "institution": {
+                "type": "string",
+                "description": "the institution name as described in the DICOM tag [0008,0080]",
+                "example": "The good hospital"
+              },
+              "patientComments": {
+                "type": "string",
+                "description": "the patient comments as described in the DICOM tag [0010,4000]",
+                "example": "Some comments..."
+              }
+            }
+          },
+          "serieses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Series"
+            }
+          }
+        },
+        "description": "Content produced in a DICOM imaging study"
+      },
+      "folder": {
+        "required": [
+          "owner",
+          "systemId",
+          "title"
+        ],
+        "type": "object",
+        "properties": {
+          "systemId": {
+            "type": "string",
+            "description": "the internal system identifier of the folder",
+            "example": "123-ABC-456"
+          },
+          "processing": {
+            "type": "boolean",
+            "description": "indicates if the folder is currently being processed on the server. folders which are still being processed may not be complete and the client may want to wait before providing user access to such folders",
+            "example": "True"
+          },
+          "forms": {
+            "type": "array",
+            "description": "basic folder related forms information",
+            "items": {
+              "$ref": "#/components/schemas/FormInfo"
+            }
+          },
+          "title": {
+            "type": "string",
+            "description": "the title of the folder",
+            "example": "My Folder Title"
+          },
+          "owner": {
+            "type": "object",
+            "properties": {
+              "ownerType": {
+                "type": "string",
+                "enum": [
+                  "CareTeam",
+                  "User"
+                ]
+              },
+              "systemId": {
+                "type": "string",
+                "description": "the system ID of the owner (CareTeam or User)",
+                "example": "123-ABC-456"
+              },
+              "link": {
+                "type": "string",
+                "description": "url for the resource (CareTeam or User)",
+                "example": "/careteams/123-ABC-456/"
+              }
+            }
+          },
+          "subject": {
+            "type": "object",
+            "properties": {
+              "systemId": {
+                "type": "string",
+                "description": "the system ID of the patient in this study",
+                "example": "123-ABC-456"
+              },
+              "link": {
+                "type": "string",
+                "description": "url for the resource",
+                "example": "/patients/123-ABC-456/"
+              }
+            }
+          },
+          "studiesCount": {
+            "type": "integer",
+            "description": "the number of total studies in this folder",
+            "example": 5
+          },
+          "lastModifiedDate": {
+            "type": "string",
+            "description": "the last change date and time of this folder (new/deleted files, shared, etc.) YYYY-MM-DDTHH:MM:SSZ",
+            "example": "1879-03-14"
+          },
+          "download-link": {
+            "type": "string",
+            "description": "url for getting folder download details",
+            "example": "/folders/123-ABC-456/download"
+          },
+          "shared": {
+            "type": "boolean",
+            "description": "indicates whether the folder is shared",
+            "example": false
+          },
+          "permissions": {
+            "type": "array",
+            "description": "folder permissions",
+            "example": [
+              "Upload",
+              "View",
+              "Download"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "Upload",
+                "View",
+                "Download"
+              ]
+            }
+          },
+          "studies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Study"
+            }
+          }
+        },
+        "description": "Logical storage of medical data about patient. Also referened as 'Medical Event', 'Event' or 'Case'"
+      },
+      "PatientWithFolders": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "systemId": {
+                "type": "string",
+                "description": "the unique system identifier",
+                "example": "123-ABC-456"
+              },
+              "owner": {
+                "type": "object",
+                "properties": {
+                  "ownerType": {
+                    "type": "string",
+                    "enum": [
+                      "Account",
+                      "User"
+                    ],
+                    "description": "The type of the owner of this patient. This field is not mandatory when sending data to the server (for example, when creating or updating a patient)"
+                  },
+                  "systemId": {
+                    "type": "string",
+                    "description": "the system ID of the owner (Account or User)",
+                    "example": "123-ABC-456"
+                  },
+                  "link": {
+                    "type": "string",
+                    "description": "url for the resource (Account or User). This field is not mandatory when sending data to the server (for example, when creating or updating a patient)",
+                    "example": "/accounts/123-ABC-456/"
+                  }
+                }
+              },
+              "forms": {
+                "type": "array",
+                "description": "basic patient related forms information",
+                "items": {
+                  "$ref": "#/components/schemas/FormInfo"
+                }
+              }
+            }
+          },
+          {
+            "$ref": "#/components/schemas/PatientDemographics"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "folders": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/folder"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Patient": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "owner": {
+                "type": "object",
+                "properties": {
+                  "ownerType": {
+                    "type": "string",
+                    "enum": [
+                      "Account",
+                      "User",
+                      "CareTeam"
+                    ],
+                    "description": "The type of the owner of this patient. This field is not mandatory when sending data to the server (for example, when creating or updating a patient)"
+                  },
+                  "systemId": {
+                    "type": "string",
+                    "description": "the system ID of the owner (Account, User or CareTeam)",
+                    "example": "123-ABC-456"
+                  },
+                  "link": {
+                    "type": "string",
+                    "description": "url for the resource (Account or User). This field is not mandatory when sending data to the server (for example, when creating or updating a patient)",
+                    "example": "/accounts/123-ABC-456/"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "$ref": "#/components/schemas/PatientDemographics"
+          }
+        ]
+      },
+      "QuentryIdentifier": {
+        "required": [
+          "systemId"
+        ],
+        "type": "object",
+        "properties": {
+          "systemId": {
+            "type": "string",
+            "description": "the unique system identifier",
+            "example": "123-ABC-456"
+          }
+        }
+      },
+      "PatientWithIdentifier": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/QuentryIdentifier"
+          },
+          {
+            "$ref": "#/components/schemas/Patient"
+          }
+        ]
+      },
+      "PatientWithFoldersAndFormsLinks": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PatientWithIdentifier"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "forms": {
+                "type": "array",
+                "description": "basic patient related forms information",
+                "items": {
+                  "$ref": "#/components/schemas/FormInfo"
+                }
+              },
+              "folders": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "links to folders of this patient",
+                  "example": "/patients/123-ABC-456/folders/123-ABC-456"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "folderEventData": {
+        "type": "object",
+        "properties": {
+          "eventName": {
+            "type": "string",
+            "description": "the name of the event that will be created upon the submission of this form to a folder. When submitting event via forms, the event is only relevant for folder level forms.",
+            "example": "“Follow-Up”"
+          },
+          "eventCategory": {
+            "type": "string",
+            "description": "the category of the event that will be created upon the submission of this form to a folder. A category can contain multiple events. When submitting event via forms, the event is only relevant for folder level forms.",
+            "example": "“Spine”"
+          },
+          "eventDate": {
+            "type": "string",
+            "description": "the date of the event that will be created upon the submission of this form to a folder. Should be sent in the format “yyyy-MM-ddTHH:mm:ssZ”. When submitting event via forms, the event is only relevant for folder level forms.",
+            "example": "“2021-01-15T23:00:00.000Z”"
+          }
+        },
+        "description": "defines folder event data"
+      },
+      "eformDesriptorWithFolderEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/eformDescriptor"
+          },
+          {
+            "$ref": "#/components/schemas/folderEventData"
+          }
+        ]
+      },
+      "folderEform": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/eformDesriptorWithFolderEvent"
+          },
+          {
+            "$ref": "#/components/schemas/eformData"
+          }
+        ]
+      },
+      "downloadMetadata": {
+        "type": "object",
+        "properties": {
+          "zip": {
+            "type": "string",
+            "description": "link for downloading all files in a zip archive. This is only supported for downloading original file format.",
+            "example": "https://download.quentry.com/..."
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "originalFileType": {
+                  "type": "string",
+                  "description": "one of the knwon types supported by the system. This is the original file format as it was uploaded and stored in Quentry",
+                  "example": "DICOM",
+                  "enum": [
+                    "DICOM",
+                    "Form",
+                    "Attachment"
+                  ]
+                },
+                "dicomMetadata": {
+                  "type": "object",
+                  "properties": {
+                    "studyInstanceUid": {
+                      "type": "string",
+                      "description": "the study instance uid as described in the DICOM tag [0020,000D] of this file",
+                      "example": "1.2.3.4"
+                    },
+                    "seriesUid": {
+                      "type": "string",
+                      "description": "the series instance uid as described in the DICOM tag [0020,000D] of this file",
+                      "example": "1.2.3.4"
+                    },
+                    "instanceUid": {
+                      "type": "string",
+                      "description": "the instance uid as described in the DICOM tag [0008,0018] of this file",
+                      "example": "1.2.3.4"
+                    },
+                    "frameNumber": {
+                      "type": "integer",
+                      "description": "the frame number in this DICOM instance. This is only returned for DICOM extraction to images in order to allow identifying the exact image",
+                      "example": 0
+                    }
+                  }
+                },
+                "systemMetadata": {
+                  "type": "object",
+                  "properties": {
+                    "studySystemId": {
+                      "type": "string",
+                      "description": "the unique study identifier in Quentry",
+                      "example": "123-ABC-456"
+                    },
+                    "seriesSystemId": {
+                      "type": "string",
+                      "description": "the unique series identifier in Quentry",
+                      "example": "123-ABC-456"
+                    },
+                    "instanceSystemId": {
+                      "type": "string",
+                      "description": "the unique instance identifier in Quentry",
+                      "example": "123-ABC-456"
+                    }
+                  }
+                },
+                "mimeType": {
+                  "type": "string",
+                  "description": "known mime type of the file",
+                  "example": "application/dicom"
+                },
+                "downloadUrl": {
+                  "type": "string",
+                  "description": "url for downloading the file. Make sure to use the 'Authorization' header with your access key when accessing this URL and 'Accept' header with the format to be downloaded, 'image/png' or 'image/jpeg'",
+                  "example": "https://download.quentry.com/..."
+                },
+                "fileSystemId": {
+                  "type": "string",
+                  "description": "the unique file identifier",
+                  "example": "ea348fa6-e8ca-ec11-b6cf-5414f3670cf4"
+                }
+              }
+            }
+          }
+        }
+      },
+      "accountData": {
+        "type": "object",
+        "properties": {
+          "systemId": {
+            "type": "string",
+            "description": "the unique identifer of the account",
+            "example": "123-ABC-456"
+          },
+          "name": {
+            "type": "string",
+            "description": "the name of the account",
+            "example": "Good Hospital"
+          },
+          "link": {
+            "type": "string",
+            "description": "link for retrieving more details about the account",
+            "example": "/accounts/123-ABC-456"
+          }
+        }
+      },
+      "CareTeam": {
+        "type": "object",
+        "properties": {
+          "systemId": {
+            "type": "string",
+            "example": "123-ABC-456",
+            "description": "The uniqie identifier of the careteam"
+          },
+          "name": {
+            "type": "string",
+            "example": "Neuro Department CT",
+            "description": "The registereed name of the careteam"
+          },
+          "account": {
+            "description": "The Careteam Account.",
+            "$ref": "#/components/schemas/accountData"
+          }
+        }
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "systemId": {
+            "type": "string",
+            "example": "123-ABC-456",
+            "description": "The uniqie identifier of the account"
+          },
+          "name": {
+            "type": "string",
+            "example": "Good Hospital",
+            "description": "The registereed name of the account"
+          },
+          "institution": {
+            "type": "string",
+            "example": "Good Hospital",
+            "description": "The registered institution name"
+          },
+          "city": {
+            "type": "string",
+            "example": "NY",
+            "description": "The registered city of the account"
+          },
+          "country": {
+            "type": "string",
+            "example": "U.S.A",
+            "description": "The registered country of the account"
+          },
+          "careteams": {
+            "type": "array",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/CareTeam"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "link": {
+                      "type": "string",
+                      "description": "link for retrieving more details about the CareTeam",
+                      "example": "/accounts/123-ABC-456/careteams/123-ABC-456"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "ServiceAppLinkedAccount": {
+        "required": [
+          "systemId",
+          "careTeams"
+        ],
+        "type": "object",
+        "properties": {
+          "systemId": {
+            "type": "string",
+            "description": "the application unique identifier"
+          },
+          "careteams": {
+            "type": "array",
+            "description": "list of CareTeams that the application has access to",
+            "items": {
+              "type": "object",
+              "properties": {
+                "systemId": {
+                  "type": "string",
+                  "description": "CareTeam system ID"
+                },
+                "Permissions": {
+                  "type": "array",
+                  "description": "Permissions this application has for the CareTeam. Read - the application can read CareTeam data, Write - the application can write data to the CareTeam, Retrieve - the application can download data (files) from the CareTeam",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "Read",
+                      "Write",
+                      "Retrieve"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "CareTeamWithMembers": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CareTeam"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "members": {
+                "type": "array",
+                "description": "details about the members of the CareTeam. Note: this only returns for CareTeams the user is member of are belongs to account he is admin of.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "systemId": {
+                      "type": "string",
+                      "description": "the unique identifer of the member",
+                      "example": "123-ABC-456"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "the name of the careteam member",
+                      "example": "John Doe"
+                    },
+                    "link": {
+                      "type": "string",
+                      "description": "link for retrieving more details about the careteam member",
+                      "example": "/users/123-ABC-456"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "systemId": {
+            "type": "string",
+            "example": "123-ABC-456",
+            "description": "The uniqie identifier of the user"
+          },
+          "firstName": {
+            "type": "string",
+            "example": "John",
+            "description": "The registered first name of the user"
+          },
+          "lastName": {
+            "type": "string",
+            "example": "Doe",
+            "description": "The registered last name of the user"
+          },
+          "username": {
+            "type": "string",
+            "example": "John.Doe",
+            "description": "The registered username of the user"
+          },
+          "institution": {
+            "type": "string",
+            "example": "Good Hospital",
+            "description": "The registered institution of the user"
+          },
+          "city": {
+            "type": "string",
+            "example": "NY",
+            "description": "The registered city of the user"
+          },
+          "country": {
+            "type": "string",
+            "example": "U.S.A",
+            "description": "The registered country of the user"
+          },
+          "position": {
+            "type": "string",
+            "example": "Physician",
+            "description": "The registered position of the user. This value is only returned when sending the request for the current user"
+          },
+          "email": {
+            "type": "string",
+            "example": "John.Doe@example.com",
+            "description": "The registered email of the user. This value is only returned when sending the request for the current user"
+          },
+          "speciality": {
+            "type": "string",
+            "example": "Neurology",
+            "description": "The registered speciality. This value is only returned when sending the request for the current user"
+          }
+        }
+      },
+      "UserWithReferences": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/User"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "contacts": {
+                "description": "The contacts of the user (can be either other User or CareTeam). This value is only returned when sending the request for the current user",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "systemId": {
+                      "type": "string",
+                      "description": "the unique identifer of the contact",
+                      "example": "123-ABC-456"
+                    },
+                    "contactType": {
+                      "type": "string",
+                      "enum": [
+                        "User",
+                        "CareTeam"
+                      ]
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "the name of the contact",
+                      "example": "Jane Doe"
+                    },
+                    "status": {
+                      "type": "string",
+                      "description": "Specifies the contact relation status. Whether it is 'Pending' for approval or already 'Approved'",
+                      "enum": [
+                        "Pending",
+                        "Approved"
+                      ]
+                    },
+                    "permissions": {
+                      "type": "string",
+                      "description": "The permissions granted to the contact of this user. 'Upload' - grant permissions to the other user to upload new data to this user",
+                      "enum": [
+                        "Upload"
+                      ]
+                    },
+                    "link": {
+                      "type": "string",
+                      "description": "link for retrieving more details about the contact",
+                      "example": "/users/123-ABC-456"
+                    }
+                  }
+                }
+              },
+              "careteamMemberships": {
+                "description": "The CareTeam memberships of the user. This value is only returned when sending the request for the current user",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "systemId": {
+                      "type": "string",
+                      "description": "the unique identifer of the CareTeam",
+                      "example": "123-ABC-456"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "the name of the CareTeam",
+                      "example": "Neuro Department CT"
+                    },
+                    "permissions": {
+                      "type": "array",
+                      "description": "The permissions of this user in the context of the CareTeam",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "Download",
+                          "EditPatient",
+                          "ChangeOwner",
+                          "Manage"
+                        ]
+                      }
+                    },
+                    "role": {
+                      "type": "string",
+                      "description": "role of the user in the CareTeam",
+                      "example": "Admin"
+                    },
+                    "link": {
+                      "type": "string",
+                      "description": "link for retrieving more details about the CareTeam",
+                      "example": "/accounts/123-ABC-456/careteams/123-ABC-456"
+                    }
+                  }
+                }
+              },
+              "account": {
+                "description": "The account this user is admin of. This value is only returned when sending the request for the current user",
+                "$ref": "#/components/schemas/accountData"
+              }
+            }
+          }
+        ]
+      },
+      "App": {
+        "type": "object",
+        "properties": {
+          "systemId": {
+            "type": "string",
+            "example": "123-ABC-456",
+            "description": "The uniqie identifier of the application"
+          },
+          "applicationName": {
+            "type": "string",
+            "description": "The name of the application",
+            "example": "TraumaCad Mobile"
+          },
+          "startDate": {
+            "type": "string",
+            "description": "The start date in which the application is allowed for the user (YYYY-MM-DD)",
+            "example": "2020-03-14"
+          },
+          "endDate": {
+            "type": "string",
+            "description": "The end date in which the application is allowed for the user (YYYY-MM-DD)",
+            "example": "2021-03-14"
+          },
+          "expired": {
+            "type": "boolean",
+            "description": "Whether or not the license already expired",
+            "example": false
+          },
+          "appOwner": {
+            "type": "object",
+            "properties": {
+              "systemId": {
+                "type": "string",
+                "description": "The unique identifier of the application owner. This may not be the current user in case the application was assigned to the user by a different account",
+                "example": "123-ABC-456"
+              },
+              "link": {
+                "type": "string",
+                "description": "url for the resource",
+                "example": "/accounts/123-ABC-456/"
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "forbidden": {
+        "description": "Forbidden. You may not have permissions to perform this operation."
+      }
+    }
+  }
+}

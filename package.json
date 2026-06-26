@@ -1,0 +1,21 @@
+{
+  "name": "qa-copilot",
+  "version": "1.0.0",
+  "description": "Professional OpenAPI QA Copilot",
+  "main": "bin/copilot.js",
+  "bin": {
+    "qa-copilot": "./bin/copilot.js"
+  },
+  "scripts": {
+    "start": "node bin/copilot.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.33.1",
+    "@google/genai": "^0.1.1",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "js-yaml": "^4.1.0",
+    "openai": "^4.52.3",
+    "winston": "^3.13.1"
+  }
+}
