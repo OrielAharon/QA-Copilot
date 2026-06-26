@@ -46,4 +46,4 @@ QA-Copilot/
 │   └── logger.js               # Logging service
 │
 ├── logs/                       # Application logs
-└── swagger.json                # API specification
+└── swagger.json                # API specification"# QA-Copilot" 
